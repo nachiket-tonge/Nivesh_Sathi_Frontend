@@ -1,10 +1,7 @@
-
 "use client";
-
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
 
 const fundCategories = [
   "All Categories",
@@ -15,8 +12,8 @@ const fundCategories = [
   "Debt",
 ];
 
-
 const amcOptions = [
+  "Any AMC",
   "Aditya Birla Sun Life Mutual Fund",
   "Axis Mutual Fund",
   "Bandhan Mutual Fund",
@@ -49,13 +46,11 @@ const amcOptions = [
   "Sundaram Mutual Fund",
   "Union Mutual Fund",
   "UTI Mutual Fund",
-  "WhiteOak Capital Mutual Fund"
+  "WhiteOak Capital Mutual Fund",
 ];
-
 
 export default function MainContent() {
   const router = useRouter();
-
 
   const [mode, setMode] = useState("LUMPSUM");
   const [amount, setAmount] = useState(100000);
@@ -63,71 +58,50 @@ export default function MainContent() {
   const [tenure, setTenure] = useState(5);
   const [risk, setRisk] = useState(3);
 
-
   const [fundCategory, setFundCategory] = useState("All Categories");
   const [amcPreference, setAmcPreference] = useState("Any AMC");
-
 
   const formatAmountLabel = (v) => `₹${(v / 100000).toFixed(1)}L`;
   const formatSipLabel = (v) => `₹${v.toLocaleString()}`;
 
-
-  // helpers to compute thumb position (0–100%)
   const calcPercent = (value, min, max) =>
     ((value - min) / (max - min || 1)) * 100;
 
-
+  // ✅ DIRECT FASTAPI CALL
   const handleSubmit = async () => {
     try {
       const payload = {
-        amc_name:
-          amcPreference === "Any AMC" ? "HDFC Mutual Fund" : amcPreference,
-        category: fundCategory,
+        amc_name: amcPreference === "Any AMC" ? null : amcPreference,
+        category: fundCategory === "All Categories" ? null : fundCategory,
         investment_amount: mode === "LUMPSUM" ? amount : null,
         sip_amount: mode === "SIP" ? sipAmount : null,
         tenure: tenure,
       };
 
-
       console.log("SENDING PAYLOAD:", payload);
 
+      const ML_URL = process.env.NEXT_PUBLIC_ML_URL;
 
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        alert("Please login first");
-        router.push("/auth/login");
-        return;
-      }
-
-
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-      const res = await fetch(`${BACKEND_URL}/ai/recommend`, {
+      const res = await fetch(`${ML_URL}/predict`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
-
       if (!res.ok) {
         const text = await res.text();
-        console.error("Backend error response:", text);
+        console.error("ML ERROR RESPONSE:", text);
         return;
       }
 
-
       const data = await res.json();
-      console.log("AI RESPONSE:", data);
+      console.log("ML RESPONSE:", data);
 
-
-      sessionStorage.setItem(
-        "aiResults",
-        JSON.stringify(data.recommendations)
-      );
+      localStorage.setItem("aiResults", JSON.stringify(data));
+      console.log("FULL AI RESPONSE:", data);
+console.log("RECOMMENDATIONS:", data?.recommendations);
 
 
       router.push("/ai-recommendation/results");
@@ -136,57 +110,44 @@ export default function MainContent() {
     }
   };
 
-
   return (
     <section className="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-slate-100">
       {/* Top controls */}
       <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <div className="flex flex-col">
+        <div>
           <label className="text-xs font-medium text-slate-500 mb-1">
             Fund Category
           </label>
-          <div className="relative">
-            <select
-              value={fundCategory}
-              onChange={(e) => setFundCategory(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none"
-            >
-              {fundCategories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs">
-              ▼
-            </span>
-          </div>
+          <select
+            value={fundCategory}
+            onChange={(e) => setFundCategory(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            {fundCategories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
         </div>
 
-
-        <div className="flex flex-col">
+        <div>
           <label className="text-xs font-medium text-slate-500 mb-1">
             AMC Preference
           </label>
-          <div className="relative">
-            <select
-              value={amcPreference}
-              onChange={(e) => setAmcPreference(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none"
-            >
-              {amcOptions.map((a) => (
-                <option key={a}>{a}</option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs">
-              ▼
-            </span>
-          </div>
+          <select
+            value={amcPreference}
+            onChange={(e) => setAmcPreference(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            {amcOptions.map((a) => (
+              <option key={a}>{a}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-
       {/* Mode toggle */}
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+      <div className="flex justify-between mb-6">
+        <p className="text-xs font-medium text-slate-500 uppercase">
           Investment Mode
         </p>
         <div className="inline-flex rounded-full bg-slate-100 p-1">
@@ -194,9 +155,9 @@ export default function MainContent() {
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold ${
                 mode === m
-                  ? "bg-emerald-500 text-white shadow-sm"
+                  ? "bg-emerald-500 text-white"
                   : "text-slate-600"
               }`}
             >
@@ -206,164 +167,69 @@ export default function MainContent() {
         </div>
       </div>
 
-
       {/* Lumpsum */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-xs font-medium text-slate-600">
-            Investment Amount
-          </label>
-          <span className="text-xs font-semibold text-emerald-600">
-            {formatAmountLabel(amount)}
-          </span>
-        </div>
-
-
-        {/* slider + bubble */}
-        <div className="relative mt-4">
-          {/* bubble */}
-          <div
-            className="absolute -top-6 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-[11px] text-white font-medium shadow-sm"
-            style={{
-              left: `${calcPercent(amount, 10000, 2000000)}%`,
-            }}
-          >
-            {formatAmountLabel(amount)}
-          </div>
-
-
-          <input
-            type="range"
-            min="10000"
-            max="2000000"
-            step="10000"
-            disabled={mode !== "LUMPSUM"}
-            value={amount}
-            onChange={(e) => setAmount(+e.target.value)}
-            className={`w-full accent-emerald-500 ${
-              mode !== "LUMPSUM" ? "opacity-40 cursor-not-allowed" : ""
-            }`}
-          />
-        </div>
-
-
-        <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-          <span>₹10k</span>
-          <span>₹20L</span>
+        <label className="text-xs font-medium text-slate-600">
+          Investment Amount
+        </label>
+        <input
+          type="range"
+          min="10000"
+          max="2000000"
+          step="10000"
+          disabled={mode !== "LUMPSUM"}
+          value={amount}
+          onChange={(e) => setAmount(+e.target.value)}
+          className="w-full accent-emerald-500"
+        />
+        <div className="text-xs text-emerald-600">
+          {formatAmountLabel(amount)}
         </div>
       </div>
-
 
       {/* SIP */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-xs font-medium text-slate-600">
-            Monthly SIP
-          </label>
-          <span className="text-xs font-semibold text-emerald-600">
-            {formatSipLabel(sipAmount)}
-          </span>
-        </div>
-
-
-        <div className="relative mt-4">
-          <div
-            className="absolute -top-6 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-[11px] text-white font-medium shadow-sm"
-            style={{
-              left: `${calcPercent(sipAmount, 500, 50000)}%`,
-            }}
-          >
-            {formatSipLabel(sipAmount)}
-          </div>
-
-
-          <input
-            type="range"
-            min="500"
-            max="50000"
-            step="500"
-            disabled={mode !== "SIP"}
-            value={sipAmount}
-            onChange={(e) => setSipAmount(+e.target.value)}
-            className={`w-full accent-emerald-500 ${
-              mode !== "SIP" ? "opacity-40 cursor-not-allowed" : ""
-            }`}
-          />
-        </div>
-
-
-        <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-          <span>₹500</span>
-          <span>₹50k</span>
+        <label className="text-xs font-medium text-slate-600">
+          Monthly SIP
+        </label>
+        <input
+          type="range"
+          min="500"
+          max="50000"
+          step="500"
+          disabled={mode !== "SIP"}
+          value={sipAmount}
+          onChange={(e) => setSipAmount(+e.target.value)}
+          className="w-full accent-emerald-500"
+        />
+        <div className="text-xs text-emerald-600">
+          {formatSipLabel(sipAmount)}
         </div>
       </div>
 
-
-      {/* Tenure + Risk */}
-      <div className="grid md:grid-cols-2 gap-5 mb-7">
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium text-slate-600">
-              Tenure (Years)
-            </label>
-            <span className="text-xs font-semibold text-emerald-600">
-              {tenure} years
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="50"
-            value={tenure}
-            onChange={(e) => setTenure(+e.target.value)}
-            className="w-full accent-emerald-500"
-          />
-          <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-            <span>1</span>
-            <span>50</span>
-          </div>
-        </div>
-
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium text-slate-600">
-              Risk Appetite
-            </label>
-            <span className="text-xs font-semibold text-emerald-600">
-              {risk === 1 ? "Low" : risk === 2 ? "Moderate" : "High"}
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="3"
-            value={risk}
-            onChange={(e) => setRisk(+e.target.value)}
-            className="w-full accent-emerald-500"
-          />
-          <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-            <span>Low</span>
-            <span>Medium</span>
-            <span>High</span>
-          </div>
-        </div>
+      {/* Tenure */}
+      <div className="mb-6">
+        <label className="text-xs font-medium text-slate-600">
+          Tenure (Years)
+        </label>
+        <input
+          type="range"
+          min="1"
+          max="50"
+          value={tenure}
+          onChange={(e) => setTenure(+e.target.value)}
+          className="w-full accent-emerald-500"
+        />
+        <div className="text-xs text-emerald-600">{tenure} years</div>
       </div>
-
 
       {/* CTA */}
       <button
         onClick={handleSubmit}
-        className="w-full py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold shadow-md shadow-emerald-500/20 transition"
+        className="w-full py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
       >
         Get AI Recommendations
       </button>
-
-
-      <p className="mt-3 text-[11px] text-center text-slate-400">
-        Uses historical performance, risk metrics, and your profile to rank
-        suitable mutual funds. This is not investment advice.
-      </p>
     </section>
   );
 }

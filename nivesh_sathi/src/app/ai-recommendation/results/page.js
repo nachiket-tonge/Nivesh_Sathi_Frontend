@@ -3,25 +3,48 @@
 import { useEffect, useState } from "react";
 
 export default function ResultsPage() {
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("aiResults");
-    if (!stored) return;
+    const stored = localStorage.getItem("aiResults");
+
+    if (!stored || stored === "undefined" || stored === "null") {
+      setResults([]);
+      return;
+    }
 
     try {
-      if (stored === "undefined" || stored === "null" || stored.trim() === "") {
-        return;
-      }
       const parsed = JSON.parse(stored);
+
+      // ✅ CASE 1: Array directly
       if (Array.isArray(parsed)) {
         setResults(parsed);
+        return;
       }
+
+      // ✅ CASE 2: Object with recommendations key
+      if (
+        typeof parsed === "object" &&
+        Array.isArray(parsed.recommendations)
+      ) {
+        setResults(parsed.recommendations);
+        return;
+      }
+
+      // ❌ Anything else → empty
+      setResults([]);
     } catch (e) {
-      console.error("Failed to parse aiResults from sessionStorage:", e, stored);
+      console.error("Failed to parse aiResults:", e, stored);
+      setResults([]);
     }
   }, []);
 
+  // Loading guard
+  if (results === null) {
+    return null;
+  }
+
+  // Empty state (UI unchanged)
   if (!results.length) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center">
@@ -38,9 +61,9 @@ export default function ResultsPage() {
     );
   }
 
+  // Results UI (unchanged)
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
           <p className="text-xs font-semibold tracking-wide uppercase text-emerald-600 mb-1">
@@ -62,18 +85,15 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Cards */}
       <div className="grid md:grid-cols-2 gap-5">
         {results.map((f, i) => (
           <div
             key={i}
             className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow"
           >
-            {/* Accent bar */}
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
 
             <div className="p-5 pt-6">
-              {/* Title + badge */}
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-semibold text-base md:text-lg text-slate-900">
                   {f.scheme_name}
@@ -83,15 +103,11 @@ export default function ResultsPage() {
                 </span>
               </div>
 
-              {/* Metrics */}
               <div className="grid grid-cols-3 gap-3 text-xs md:text-sm mt-5">
                 <div className="space-y-1">
                   <p className="text-slate-400">Expected (1Y)</p>
                   <p className="text-sm font-semibold text-emerald-600">
                     {f.expected}%
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Based on model forecast
                   </p>
                 </div>
 
@@ -100,9 +116,6 @@ export default function ResultsPage() {
                   <p className="text-sm font-semibold text-slate-800">
                     {f.best_case}%
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    90th percentile scenario
-                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -110,13 +123,9 @@ export default function ResultsPage() {
                   <p className="text-sm font-semibold text-rose-500">
                     {f.worst_case}%
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    10th percentile scenario
-                  </p>
                 </div>
               </div>
 
-              {/* Footer line */}
               <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
                 <p className="text-[11px] text-slate-400">
                   Past performance:{" "}
