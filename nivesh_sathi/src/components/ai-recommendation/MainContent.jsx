@@ -80,12 +80,14 @@ export default function MainContent() {
 
       console.log("SENDING PAYLOAD:", payload);
 
-      const ML_URL = process.env.NEXT_PUBLIC_ML_URL;
 
-      const res = await fetch(`${ML_URL}/predict`, {
+      const token = localStorage.getItem("token");
+
+      const res = await fetch("/api/ai/recommend", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

@@ -1,5 +1,6 @@
 import "./globals.css";
 import NavbarWrapper from "../components/navbar/NavbarWrapper";
+import GoogleProvider from "../components/providers/GoogleProvider";
 
 export const metadata = {
   title: "NiveshSathi",
@@ -10,8 +11,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <NavbarWrapper />
-        {children}
+        <GoogleProvider>
+          <NavbarWrapper />
+          {children}
+        </GoogleProvider>
       </body>
     </html>
   );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { API } from "../../../../lib/config";
 
 export async function POST(req) {
   try {
@@ -13,28 +14,24 @@ export async function POST(req) {
       );
     }
 
-    const res = await fetch(
-      "https://nivesh-sathi-backend.onrender.com/api/ai/recommend",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    const text = await res.text();
-
-    return new NextResponse(text, {
-      status: res.status,
+    const res = await fetch(API.AI.RECOMMEND, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: token,
       },
+      body: JSON.stringify(body),
     });
+
+    const data = await res.json();
+
+    return NextResponse.json(data, {
+      status: res.status,
+    });
+
   } catch (err) {
     console.error("Proxy error:", err);
+
     return NextResponse.json(
       { error: "Proxy failed" },
       { status: 500 }
