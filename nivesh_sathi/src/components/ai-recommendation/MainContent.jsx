@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const fundCategories = [
-  "All Categories",
+  "Select Fund Category",
   "Large Cap",
   "Mid Cap",
   "Small Cap",
@@ -13,7 +13,7 @@ const fundCategories = [
 ];
 
 const amcOptions = [
-  "Any AMC",
+  "Select AMC",
   "Aditya Birla Sun Life Mutual Fund",
   "Axis Mutual Fund",
   "Bandhan Mutual Fund",
@@ -56,30 +56,40 @@ export default function MainContent() {
   const [amount, setAmount] = useState(100000);
   const [sipAmount, setSipAmount] = useState(5000);
   const [tenure, setTenure] = useState(5);
-  const [risk, setRisk] = useState(3);
 
-  const [fundCategory, setFundCategory] = useState("All Categories");
-  const [amcPreference, setAmcPreference] = useState("Any AMC");
+  const [fundCategory, setFundCategory] = useState("Select Fund Category");
+  const [amcPreference, setAmcPreference] = useState("Select AMC");
+
+  const [loading, setLoading] = useState(false);
 
   const formatAmountLabel = (v) => `₹${(v / 100000).toFixed(1)}L`;
   const formatSipLabel = (v) => `₹${v.toLocaleString()}`;
 
-  const calcPercent = (value, min, max) =>
-    ((value - min) / (max - min || 1)) * 100;
-
-  // ✅ DIRECT FASTAPI CALL
   const handleSubmit = async () => {
+    if (loading) return;
+
+    if (fundCategory === "Select Fund Category") {
+      alert("Please select a Fund Category.");
+      return;
+    }
+
+    if (amcPreference === "Select AMC") {
+      alert("Please select an AMC.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const payload = {
-        amc_name: amcPreference === "Any AMC" ? null : amcPreference,
-        category: fundCategory === "All Categories" ? null : fundCategory,
+        amc_name: amcPreference,
+        category: fundCategory,
         investment_amount: mode === "LUMPSUM" ? amount : null,
         sip_amount: mode === "SIP" ? sipAmount : null,
-        tenure: tenure,
+        tenure,
       };
 
       console.log("SENDING PAYLOAD:", payload);
-
 
       const token = localStorage.getItem("token");
 
@@ -95,72 +105,77 @@ export default function MainContent() {
       if (!res.ok) {
         const text = await res.text();
         console.error("ML ERROR RESPONSE:", text);
+        alert("Failed to generate recommendations. Please try again.");
         return;
       }
 
       const data = await res.json();
-      console.log("ML RESPONSE:", data);
 
       localStorage.setItem("aiResults", JSON.stringify(data));
-      console.log("FULL AI RESPONSE:", data);
-console.log("RECOMMENDATIONS:", data?.recommendations);
-
 
       router.push("/ai-recommendation/results");
     } catch (err) {
       console.error("Request failed:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-slate-100">
-      {/* Top controls */}
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
+    <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-lg md:p-8">
+      {/* Top Controls */}
+      <div className="mb-8 grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs font-medium text-slate-500 mb-1">
+          <label className="mb-1 text-xs font-medium text-slate-500">
             Fund Category
           </label>
+
           <select
             value={fundCategory}
             onChange={(e) => setFundCategory(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
           >
-            {fundCategories.map((c) => (
-              <option key={c}>{c}</option>
+            {fundCategories.map((category, index) => (
+              <option key={category} value={category} disabled={index === 0}>
+                {category}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="text-xs font-medium text-slate-500 mb-1">
+          <label className="mb-1 text-xs font-medium text-slate-500">
             AMC Preference
           </label>
+
           <select
             value={amcPreference}
             onChange={(e) => setAmcPreference(e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
           >
-            {amcOptions.map((a) => (
-              <option key={a}>{a}</option>
+            {amcOptions.map((amc, index) => (
+              <option key={amc} value={amc} disabled={index === 0}>
+                {amc}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Mode toggle */}
-      <div className="flex justify-between mb-6">
-        <p className="text-xs font-medium text-slate-500 uppercase">
+      {/* Investment Mode */}
+      <div className="mb-6 flex justify-between">
+        <p className="text-xs font-medium uppercase text-slate-500">
           Investment Mode
         </p>
+
         <div className="inline-flex rounded-full bg-slate-100 p-1">
           {["LUMPSUM", "SIP"].map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold ${
-                mode === m
-                  ? "bg-emerald-500 text-white"
-                  : "text-slate-600"
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold ${
+                mode === m ? "bg-emerald-500 text-white" : "text-slate-600"
               }`}
             >
               {m}
@@ -174,6 +189,7 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
         <label className="text-xs font-medium text-slate-600">
           Investment Amount
         </label>
+
         <input
           type="range"
           min="10000"
@@ -184,6 +200,7 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
           onChange={(e) => setAmount(+e.target.value)}
           className="w-full accent-emerald-500"
         />
+
         <div className="text-xs text-emerald-600">
           {formatAmountLabel(amount)}
         </div>
@@ -194,6 +211,7 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
         <label className="text-xs font-medium text-slate-600">
           Monthly SIP
         </label>
+
         <input
           type="range"
           min="500"
@@ -204,6 +222,7 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
           onChange={(e) => setSipAmount(+e.target.value)}
           className="w-full accent-emerald-500"
         />
+
         <div className="text-xs text-emerald-600">
           {formatSipLabel(sipAmount)}
         </div>
@@ -214,6 +233,7 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
         <label className="text-xs font-medium text-slate-600">
           Tenure (Years)
         </label>
+
         <input
           type="range"
           min="1"
@@ -222,15 +242,21 @@ console.log("RECOMMENDATIONS:", data?.recommendations);
           onChange={(e) => setTenure(+e.target.value)}
           className="w-full accent-emerald-500"
         />
+
         <div className="text-xs text-emerald-600">{tenure} years</div>
       </div>
 
       {/* CTA */}
       <button
         onClick={handleSubmit}
-        className="w-full py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
+        disabled={loading}
+        className={`w-full rounded-full py-3.5 font-semibold text-white transition ${
+          loading
+            ? "cursor-not-allowed bg-emerald-300"
+            : "bg-emerald-500 hover:bg-emerald-600"
+        }`}
       >
-        Get AI Recommendations
+        {loading ? "Generating Recommendations..." : "Get AI Recommendations"}
       </button>
     </section>
   );
